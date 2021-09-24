@@ -1,0 +1,253 @@
+--Window Function
+--RANK(): rank based on certain values
+--rank for product price
+SELECT ProductID, ProductName, UnitPrice, RANK() OVER(ORDER BY UnitPrice) RNK
+FROM Products
+
+SELECT ProductID, ProductName, UnitPrice, RANK() OVER(ORDER BY UnitPrice DESC) RNK
+FROM Products
+
+--product with the 2nd highest price
+SELECT ProductID, ProductName, UnitPrice, RANK() OVER(ORDER BY UnitPrice DESC) RNK
+FROM Products
+WHERE RNK = 2
+
+
+SELECT ProductName, UnitPrice, RNK
+FROM 
+(SELECT ProductID, ProductName, UnitPrice, RANK() OVER(ORDER BY UnitPrice DESC) RNK
+FROM Products) dt
+WHERE RNK = 2
+
+
+--DENSE_RANK(): DON'T SKIP ANY Rank
+SELECT ProductID, ProductName, UnitPrice, RANK() OVER(ORDER BY UnitPrice DESC) RNK, DENSE_RANK() OVER(ORDER BY UnitPrice DESC) DenseRNK
+FROM Products
+
+--ROW_NUMBER(): return the row number of the sorted record starting with 1
+SELECT ProductID, ProductName, UnitPrice, RANK() OVER(ORDER BY UnitPrice DESC) RNK, DENSE_RANK() OVER(ORDER BY UnitPrice DESC) DenseRNK, ROW_NUMBER() OVER (ORDER BY UnitPrice DESC) RowNum
+FROM Products
+
+
+
+--partition by: divide the result set into partitions and perform computation on each subset of partitioned data
+--list customers from every country with the ranking for number of orders
+SELECT c.ContactName, c.Country, COUNT(o.OrderID) AS NumOfOrders, RANK() OVER(PARTITION BY c.Country ORDER BY Count(o.OrderId)) RNK
+FROM Customers c JOIN Orders o ON c.CustomerID = o.CustomerID
+GROUP BY c.ContactName, c.Country
+
+
+--- find top 3 customers from every country with maximum orders
+SELECT c.ContactName, c.Country, COUNT(o.OrderID) AS NumOfOrders, RANK() OVER(PARTITION BY c.Country ORDER BY Count(o.OrderId)) RNK
+FROM Customers c JOIN Orders o ON c.CustomerID = o.CustomerID
+WHERE RNK = 3
+GROUP BY c.ContactName, c.Country
+
+
+
+SELECT c2.ContactName, c2.Country, dt.NumOfOrders, dt.RNK
+FROM Customers c2 JOIN 
+(SELECT c1.CustomerId, COUNT(o.OrderID) AS NumOfOrders, RANK() OVER(PARTITION BY c1.Country ORDER BY Count(o.OrderId)) RNK
+FROM Customers c1 JOIN Orders o ON c1.CustomerID = o.CustomerID
+GROUP BY c1.CustomerId, c1.Country) dt ON c2.CustomerID = dt.CustomerID
+WHERE RNK <= 3
+
+--FROM/JOIN -> WHERE -> GROUP BY -> HAVING -> SELECT 
+
+--cte: common table expression
+SELECT c.ContactName, c.City, dt.TotalCount
+FROM Customers c 
+LEFT JOIN 
+(SELECT COUNT(OrderId) AS "TotalCount", CustomerID 
+FROM Orders GROUP BY CustomerID) dt 
+ON c.CustomerID = dt.CustomerID	
+
+WITH OrderCountCTE
+AS
+(
+SELECT COUNT(OrderID) AS "TotalCount", CustomerID FROM Orders GROUP BY CustomerID
+)
+
+SELECT * FROM Employees
+
+SELECT c.ContactName, c.City, OrderCountCTE.TotalCount
+FROM Customers c LEFT JOIN OrderCountCTE ON c.CustomerID = OrderCountCTE.CustomerID
+
+
+--recursive CTE: cte will call itself again and again until it thinks taht it can stop and return something
+--initialization: inital call to the cte which passes in some values to get things started
+--recusive rule: cte will call itself again and again until it finally returns something
+SELECT EmployeeID, FirstName, ReportsTo
+FROM Employees 
+
+--get employee levels
+-- level 1: Andrew
+-- level 2: Nancy, Janet, Margaret, Steven, Laura
+-- level 3: Michael, Robert, Anne
+WITH empHierachyCTE
+AS(
+SELECT EmployeeID, FirstName, ReportsTo, 1 AS LVL
+FROM Employees 
+WHERE ReportsTo IS NULL
+UNION ALL
+SELECT e.EmployeeID, e.FirstName, e.ReportsTo, ct.lvl + 1
+FROM Employees e INNER JOIN empHierachyCTE ct ON e.ReportsTo = ct.EmployeeID
+)
+SELECT * FROM empHierachyCTE
+
+--temporary table: sotre data temporarily
+--# -> local temp table: 
+CREATE TABLE #LocalTemp
+(
+	Number INT
+)
+DECLARE @Variable INT = 1
+WHILE (@Variable <= 10)
+BEGIN
+INSERT INTO #LocalTemp(Number) VALUES(@Variable)
+SET @Variable = @Variable  + 1
+END
+
+SELECT *
+FROM #LocalTemp
+
+--## -> global temp objects
+CREATE TABLE ##GlobalTemp
+(
+	Number INT
+)
+DECLARE @Num INT = 1
+WHILE (@Num <= 10)
+BEGIN
+INSERT INTO ##GlobalTemp(Number) VALUES(@Num)
+SET @Num = @Num  + 1
+END
+
+SELECT *
+FROM ##GlobalTemp
+
+--table variable:
+declare @today datetime
+select @today=getdate()
+print @today
+
+DECLARE @WeekDays TABLE(DayNum INT,DayAbb VARCHAR(10) , WeekName VARCHAR(10))
+INSERT INTO @WeekDays
+VALUES 
+(1,'Mon','Monday')  ,
+(2,'Tue','Tuesday') ,
+(3,'Wed','Wednesday') ,
+(4,'Thu','Thursday'),
+(5,'Fri','Friday'),
+(6,'Sat','Saturday'),
+(7,'Sun','Sunday')	
+SELECT * FROM @WeekDays
+SELECT *
+FROM tempdb.sys.tables 
+
+--table varialbs vs. temp table
+--1. both are stored in temp
+--2. scope: temp tables -> local/global; table variable: batch that is declared
+--3. size: >100 rows -> temp table; < 100 rows -> table variables
+--4. usages: temptable not Stored Procedure, function; Can be used in sp, function
+--5. structure: temp table can dreate index, constraints except foreign key; not in table variables
+
+
+
+--view: virtual table that refernce to data from one or multiple tables
+SELECT *
+FROM Employee
+
+INSERT INTO Employee
+VALUES(1, 'Fred', 5000),(2, 'Laura', 7000), (3,'Amy', 6000)
+
+CREATE VIEW vwEmp
+AS
+SELECT Id,EName, Salary
+FROM Employee
+
+SELECT *
+FROM vwEmp
+
+INSERT INTO vwEmp
+VALUES(4, 'Sam', 9000)
+
+SELECT *
+FROM vwEmp
+WHERE Id = 1
+DROP VIEW vwEmp
+
+
+--stored procedure: prepared sql query that we can save and reuse over and over again
+--anonymous block: 
+begin
+print 'Hello anonymous block'
+end
+
+--create procedure
+CREATE PROC spHello
+AS
+BEGIN
+PRINT 'Hello stored procedure'
+END
+
+EXEC spHello
+
+--in/input: default mode
+CREATE PROC spAddNumbers
+@a int,
+@b int
+AS
+BEGIN
+PRINT @a + @b
+END
+
+EXEC spAddNumbers 10, 20
+
+spAddNumbers 10, 20
+
+--out/output
+CREATE PROC spGetEmpName
+@id int,
+@ename varchar(20) out
+AS
+BEGIN
+SELECT @ename = Ename FROM Employee WHERE id = @id
+END
+
+BEGIN
+declare @en varchar(20)
+exec spGetEmpName 2, @en out
+print @en
+END
+
+SELECT *
+FROM Employee
+--return
+alter proc spGetEmployeeRecord
+AS
+BEGIN
+DECLARE @EmployeeRow int
+SELECT @EmployeeRow = COUNT(*) FROM Employee
+RETURN @EmployeeRow
+END
+
+Declare @returnValue int
+EXEC @returnValue = spGetEmployeeRecord
+select returnValue = @returnValue
+
+--return vs. out
+--both used to return a single value
+--return only used to return an interger
+--other type: use out
+
+--return more than one records
+
+create proc spGetAllEmp
+AS
+BEGIN
+SELECT Id, EName, Salary
+FROM Employee 
+END
+
+exec spGetAllEmp
