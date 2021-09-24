@@ -1,0 +1,37 @@
+1.	In SQL Server, assuming you can find the result by using both joins and subqueries, which one would you prefer to use and why? I will prefer the join query because it has less interaction between tables and its efficiency in most cases are higher than subquery.
+2.	What is CTE and when to use it? CTE (Common Table Expression) is a temporary named result set that you can reference within a SELECT, INSERT, UPDATE, or DELETE statement. The CTE can also be used in a View.
+3.	What are Table Variables? What is their scope and where are they created in SQL Server? Tables variable is a special type of the local variable that helps to store data temporarily, like the temp table in SQL Server.
+4.	What is the difference between DELETE and TRUNCATE? Which one will have better performance and why? The DELETE statement removes rows one at a time and records an entry in the transaction log for each deleted row. TRUNCATE TABLE removes the data by deallocating the data pages used to store the table data and records only the page deallocations in the transaction log. DELETE command is slower than TRUNCATE command.
+5.	What is Identity column? How does DELETE and TRUNCATE affect it? It is a special type of column that is used to automatically generate key values based on a provided seed and increment.
+6.	What is difference between “delete from table_name” and “truncate table table_name”? ther
+
+--1.	List all cities that have both Employees and Customers.
+
+select city
+from Employees
+union
+select city from Customers
+
+/**
+2.	List all cities that have Customers but no Employee.
+a.	Use sub-query
+b.	Do not use sub-query
+
+*/
+select distinct city
+from Customers
+where city not in 
+(select city from Employees where city is null)
+
+/*select City from Customers
+select City from Employees*/
+
+/*3.	List all products and their total order quantities throughout all orders*/
+select *
+from Orders
+
+--4.	List all Customer Cities and total products ordered by that city.
+select distinct city
+
+from Customers
+having (select count(OrderID) from Order)
